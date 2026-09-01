@@ -1,13 +1,30 @@
 name: ci
 on:
   push:
-    branches: [main]
+    branches: [main, windows-powershell-compat]
   pull_request:
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
+  cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate skills
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate skills (portable Python)
+        run: python scripts/validate_skills.py
+      - name: Run cross-platform helper tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Validate PowerShell entrypoint
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/validate-skills.ps1
+      - name: Validate legacy Bash entrypoint
+        if: runner.os != 'Windows'
+        shell: bash
         run: bash scripts/validate-skills.sh
